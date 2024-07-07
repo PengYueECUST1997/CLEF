@@ -5,7 +5,7 @@ from Module import TransformerLayer, sequence_mask
 
 class clef(nn.Module):
   
-  def __init__(self, num_embeds = 1280, feature_dim = 2437, num_hiddens = 128, 
+  def __init__(self, num_embeds = 1280, feature_dim = 768, num_hiddens = 128, 
                       finial_drop = 0.1,mlp_relu = True, feat_mlp_relu = True,
                      feature_norm = True):
     super().__init__()
