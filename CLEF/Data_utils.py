@@ -134,65 +134,6 @@ class Potein_rep_datasets:
             print(f"Number of {len(self)} data can not be splited.")
         
   
-class PPI_rep_datasets:
-    '''
-    load [1D sequence_representation numpy array, pairwise PPI indeces] and yield tensor for training.
-    sequence_data---a dict containing feature of each sequence
-        {protein_ID :  feature (a 1D numpy array)}.
-    PPI_indeces---a dict containing pairwise protein indeces
-    '''
-    def __init__(self, rep_path, index_path,  train_range = None, test_range = None):
-        self.sequence_data = pickle.load(open(rep_path, 'rb'))
-        self.PPI_indeces = pickle.load(open(index_path, 'rb'))
-        self.data_indices = self.PPI_indeces
-        
-        self.train_range = train_range
-        self.test_range = test_range
-        
-        if not self.train_range:
-            self.train_range, test_indices = train_test_split(range(len(self.data_indices)), test_size=0.1, random_state=42)
-        if not self.test_range:
-            self.test_range = test_indices
-        
-    def Dataloader(self, batch_size, shuffle = True, 
-                          test = False,
-                          device = 'cpu'):
-
-        sele_range = self.test_range if test else self.train_range
-        Nsample=len(list(sele_range))
-        indices=list(sele_range)
-        if shuffle:
-            random.shuffle(indices)
-            
-        datasets = []
-        IDs = []
-        n = 0
-        for i in indices:
-            n += 1
-            ID = '-'.join(self.data_indices[i])
-            IDs.append(ID)
-            embedding_A = self.sequence_data[self.data_indices[i][0]]
-            embedding_B = self.sequence_data[self.data_indices[i][1]]
-            dataset = (embedding_A, embedding_B)
-            datasets.append(dataset)
-            
-            if len(datasets) == batch_size or n == Nsample:
-                
-                seq_input_A = torch.cat([torch.from_numpy(x[0]).unsqueeze(0) for x in datasets], 0).to(torch.float32)
-                seq_input_B = torch.cat([torch.from_numpy(x[1]).unsqueeze(0) for x in datasets], 0).to(torch.float32)
-                idx = IDs
-                datasets = []
-                IDs = []
-                
-                batch = {
-                  'A':seq_input_A.to(device),
-                  'B':seq_input_B.to(device),
-                  'ID':idx
-                }
-                yield batch
-    
-    def __len__(self):
-        return len(self.data_indices)
 
         
 

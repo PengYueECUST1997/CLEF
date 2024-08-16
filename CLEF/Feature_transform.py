@@ -43,7 +43,7 @@ def fasta_to_OneHot(input_file, output_file = None, maxlen = 512, Return = True,
 
 
 def fasta_to_EsmRep(input_fasta, output_file = None, 
-                      pretrained_model_params = './pretained_model/esm2_t33_650M_UR50D.pt',
+                      pretrained_model_params = '../pretained_model/esm2_t33_650M_UR50D.pt',
                       maxlen = 256,
                       Return = True, 
                       Final_pool = False):
@@ -108,6 +108,14 @@ def is_fasta_file(file_path):
         return False
 
 
+def extract_sequence_label(text):
+    import re
+    pattern = r'(sp|tr|gb|ref|emb|pdb|dbj)\|([^|]+)\|'
+    match = re.search(pattern, text)
+    if match:
+        return match.group(2)
+    return None
+
 def generate_clef_feature(input_file, 
                           output_file,
                           model,
@@ -115,6 +123,7 @@ def generate_clef_feature(input_file,
                           loader_config = {'batch_size':64, 'max_num_padding':256},
                           esm_config = {'Final_pool':False, 'maxlen':256, 'Return':False},
                           MLP_proj = False,
+                          res_rep = False,
                           Return = False):
     from Data_utils import Potein_rep_datasets
     import torch
@@ -159,7 +168,7 @@ def generate_clef_feature(input_file,
     features = []
     for batch in tmpset.Dataloader(**loader_config):
         with torch.no_grad():
-            feat, proj_feat = model(batch)
+            feat, proj_feat = model(batch, Return_res_rep = res_rep)
         feature = proj_feat if MLP_proj else feat
         feature_list = [feature[i,:].detach().to('cpu').numpy() for i in range(feature.shape[0])]
         IDs.extend(batch['ID'])
@@ -183,10 +192,10 @@ def generate_clef_feature(input_file,
         return output_dict
 
     
-    
-def generate_msa_transformer_1Dfeat(input_alignments_dir,  
+
+def generate_msa_transformer_feat(input_alignments_dir,  
                                    output_file, 
-                                   maxlen = 256, maxmsa = 8, 
+                                   maxlen = 1024, maxmsa = 8, 
                                    suffix = 'fasta',
                                    clust_pool = False,
                                    res_pool = False,
@@ -195,19 +204,21 @@ def generate_msa_transformer_1Dfeat(input_alignments_dir,
   import torch
   import esm
   aa_dict = {amino_acid: i for i, amino_acid in enumerate("ACDEFGHIKLMNPQRSTVWYX")}
-  model, alphabet = esm.pretrained.load_model_and_alphabet_local('./pretained_model/esm_msa1b_t12_100M_UR50S.pt')
+  model, alphabet = esm.pretrained.load_model_and_alphabet_local('../pretained_model/esm_msa1b_t12_100M_UR50S.pt')
   model = model.to('cuda:0').eval()
   batch_converter = alphabet.get_batch_converter()
   output_dict = {}
   for alignment in os.listdir(input_alignments_dir)  :
     file = os.path.join(input_alignments_dir, alignment)
+    if not is_fasta_file:
+        continue
     data = []
     ID = alignment.split(f'.{suffix}')[0]
     for record in SeqIO.parse(open(file), 'fasta'):
       if len(data) > maxmsa - 1:
         break
-      sequence = str(record.seq)[:maxlen]
-      sequence = ''.join([x if x not in ('*') else '-' for x in sequence])
+      sequence = str(record.seq)[:maxlen - 1]
+      sequence = ''.join([x if x  in aa_dict else '-' for x in sequence])
       data.append((record.id, sequence))
     batch_labels, batch_strs, batch_tokens = batch_converter(data)
     batch_lens = (batch_tokens != alphabet.padding_idx).sum(1)
@@ -220,20 +231,23 @@ def generate_msa_transformer_1Dfeat(input_alignments_dir,
         embedding = embedding.mean(1)
     if clust_pool:
         embedding = embedding.mean(0)
-        
+
     output_dict[ID] = embedding
-    print(ID)
+    
   
   if remapping_fasta:
       try:
           mapped_output = {}
           for record in SeqIO.parse(open(remapping_fasta), "fasta"):
-              if '|' in record.id:
-                 ID = record.id.split("|")[1] if record.id not in output_dict else record.id
+              if  '|' in record.id:
+                 ID = extract_sequence_label(record.id) if extract_sequence_label(record.id) else record.id.split('|')[0]
+              else:
+                 ID = record.id
               if ID not in output_dict:
                  print(f'{record.id} failed to mapped the msa array id with {ID}')
                  continue
               mapped_output[record.id] = output_dict[ID]
+              #print(mapped_output[record.id][0])
           print(f"{len(mapped_output)} IDs mapped with {remapping_fasta}")
           output_dict = mapped_output
       except:
@@ -256,4 +270,67 @@ def generate_msa_transformer_1Dfeat(input_alignments_dir,
         return output_dict
 
 
+def generate_biobert_embedding(input_file, output_file,
+                                maxlen = 128,
+                                final_pool = True,
+                                remapping_fasta = None,
+                                Return = True):
+    from transformers import BertModel, BertTokenizer, AutoTokenizer, AutoModel
+    import torch
+    with open(input_file, "rb") as f:
+      input_anot = pickle.load(f)
+    device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+    tokenizer = AutoTokenizer.from_pretrained("dmis-lab/biobert-v1.1")
+    model = AutoModel.from_pretrained("dmis-lab/biobert-v1.1").to(device)
+    model.eval()
+    output_dict = {}
+    for key, value in  input_anot.items():
+        if ';' in value:
+            temp = " ".join([value.split("; ")[0], ";", value.split(";")[1]])
+        else:
+            temp = value
+        temp = temp.replace("\n", '.')
+        tokens = temp
+        encoded_input = tokenizer(tokens, return_tensors='pt', padding = False).to(model.device)
+        output = model(**encoded_input)
+        embedding = np.array(output.last_hidden_state.detach().to('cpu').squeeze(0)).astype(np.float16)
+        embedding = embedding[:maxlen]
+        if final_pool:
+          embedding = embedding.mean(0)
+        output_dict[key] = embedding    
     
+    if remapping_fasta:
+        try:
+            mapped_output = {}
+            for record in SeqIO.parse(open(remapping_fasta), "fasta"):
+                if  '|' in record.id:
+                   ID = extract_sequence_label(record.id) if extract_sequence_label(record.id) else record.id.split('|')[0]
+                else:
+                   ID = record.id
+                if ID not in output_dict:
+                   print(f'{record.id} failed to mapped the Biobert array id with {ID}')
+                   continue
+                mapped_output[record.id] = output_dict[ID]
+            print(f"{len(mapped_output)} IDs mapped with {remapping_fasta}")
+            output_dict = mapped_output
+        except:
+            print(f"Failed to mapped with {remapping_fasta}")
+    
+    if output_file:
+        try:
+            with open(output_file, 'wb') as f:
+              pickle.dump(output_dict, f)
+            print(f'Biobert array saved as {output_file}')
+        except:
+            print(f'Biobert array failed to save as {output_file}')
+            import uuid
+            tmp_name = str(uuid.uuid4())+'_clef'
+            output_file =os.path.join(os.path.dirname(input_file), tmp_name) 
+            with open(output_file, 'wb') as f:
+              pickle.dump(output_dict, f)
+            print(f'Temp Biobert array saved as {output_file}')
+     
+    if Return:
+        return output_dict
+ 
+

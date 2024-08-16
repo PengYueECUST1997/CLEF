@@ -32,22 +32,25 @@ class clef(nn.Module):
     if self.feature_norm:
       self.ln_f = nn.LayerNorm(num_hiddens)
       
-  def forward(self, batch):
+  def forward(self, batch, Return_res_rep = False):
     if 'B_feature' not in batch:
         features_input = None
         X, valid_lens = batch['esm_feature'], batch['valid_lens']
     else:
         X, valid_lens, features_input = batch['esm_feature'], batch['valid_lens'], batch['B_feature']
-    
-    mask = torch.zeros((X.shape[0], X.shape[1]), dtype = torch.bool).to(X.device)                  
-    expanded_valid_lens = valid_lens.view(-1, 1).expand(X.shape[0], X.shape[1])    
-    src_key_padding_mask = mask.masked_fill(torch.arange(X.shape[1]).to(X.device).view(1, -1).expand(X.shape[0], X.shape[1]) >= expanded_valid_lens, True)
+        
+    src_key_padding_mask = sequence_mask(X, valid_lens)
     for layer in self.layers:
       X, _ = layer(X, mask = src_key_padding_mask.unsqueeze(1).unsqueeze(2))
     
-    X = torch.cat([X[i, :valid_lens[i] + 2].mean(0).unsqueeze(0)
-                        for i in range(X.size(0))], dim=0)
-    proj_X = self.mlp(self.Dropout(X))
+    if not Return_res_rep:
+        X = torch.cat([X[i, :valid_lens[i] + 2].mean(0).unsqueeze(0)
+                            for i in range(X.size(0))], dim=0)
+        proj_X = self.mlp(self.Dropout(X))
+    else:
+        proj_X = torch.cat([X[i, :valid_lens[i] + 2].mean(0).unsqueeze(0)
+                            for i in range(X.size(0))], dim=0)
+        proj_X = self.mlp(self.Dropout(proj_X))
     
     
     if features_input is not None:

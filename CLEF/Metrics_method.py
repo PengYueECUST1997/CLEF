@@ -117,3 +117,21 @@ def compute_acc_multi(all_yhat, all_labels, flexible_cutoff = False):
     y_pred = np.array([x.argmax() for x in all_yhat]).astype(int)
     highest_score = metrics.accuracy_score(np.array(all_labels), y_pred)
     return highest_score
+  
+def compute_acc_multi_binary(all_yhat, all_labels, flexible_cutoff = False):
+    if flexible_cutoff:
+        best_threshold = 0
+        highest_score = 0
+        for threshold in np.arange(0.1, 0.9, 0.01):  
+          y_pred = (np.array(all_yhat) > threshold).astype(int).flatten()
+          y_labels = np.array(all_labels).flatten()
+          score = metrics.accuracy_score(y_labels, y_pred)
+          if score > highest_score:
+              highest_score = score
+              best_threshold = threshold
+    else:
+        threshold = 0.5
+        y_pred = (np.array(all_yhat) > threshold).astype(int).flatten()
+        y_labels = np.array(all_labels).flatten()
+        highest_score = metrics.accuracy_score(y_labels, y_pred)
+    return highest_score
