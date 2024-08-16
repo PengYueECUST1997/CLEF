@@ -7,7 +7,7 @@ Contrastive Learning of language Embedding and biological Feature is a contrasti
 ## Set up
 
 ### Requirement
-The project is implemented with python (3.11.3), the following Python version and library dependencies are required:
+The project is implemented with python (3.11.3), the following library packages are required:
 
 ```txt
 torch==2.0.1
@@ -16,16 +16,25 @@ biopython==1.79
 einops==0.7.0
 numpy==1.23.4
 scikit-learn==1.1.3
-pandas==1.4.3
 ```
 We also tested the code with recent versions of these requirements, other reasonable versions should work as well.
 
+The code was tested on Windows.
+
 ### Installation
 
+Required Python packages are listed in `requirements.txt` file.
 To install the required packages, run the following command using pip:
-```bash
+```shell
 pip install -r requirements.txt
 ```
+
+To output the result table, the package `pandas` was used in code: 
+```shell
+pip install pandas 
+```
+
+## Demo
 
 
 
