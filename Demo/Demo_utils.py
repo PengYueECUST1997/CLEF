@@ -4,13 +4,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 import pandas as pd
-
-from CLEF.Data_utils import Potein_rep_datasets
-from CLEF.utils import *
-from CLEF.Feature_transform import *
-from CLEF.CLEF import clef
-from CLEF.Module import test_dnn
-
+import sys
 
 def find_root_path():
     try:
@@ -19,6 +13,21 @@ def find_root_path():
         current_dir = os.getcwd()
     project_root = os.path.abspath(os.path.join(current_dir, os.pardir))
     return project_root
+
+src_path = os.path.join(os.path.join(find_root_path(), "src"))
+if src_path not in sys.path:
+    sys.path.insert(0, src_path)
+
+from Data_utils import Potein_rep_datasets
+from utils import *
+from Feature_transform import *
+from CLEF import clef
+from Module import test_dnn
+
+
+
+    
+    
 
 def predict_from_1D_rep(rep_path, model, params_path,
                         output_file = None,
@@ -29,9 +38,11 @@ def predict_from_1D_rep(rep_path, model, params_path,
     if isinstance(model, torch.nn.Module):
         model.eval()
     if params_path:
-      print(f"Load model weights from {params_path}")
+      print(f"Loading model weights from {params_path}")
       try:
-        model.load_state_dict(torch.load(params_path))
+        loaded_params = torch.load(params_path, map_location=device)
+        model.load_state_dict(loaded_params)
+        print(f"Load classifier weights successfully")
       except:
         print(f"Failed to load model weights from {params_path}")
 
@@ -69,6 +80,64 @@ def predict_from_1D_rep(rep_path, model, params_path,
     if Return:
         return output_dict
 
+def generate_protein_representation(input_file,
+                    output_file,
+                    model_params_dict = None,
+                    tmp_dir = "./tmp",
+                    embedding_generator = fasta_to_EsmRep,
+                    esm_config = None
+                    ):
+    if not os.path.exists(tmp_dir):
+        os.mkdir(tmp_dir)
+    if is_fasta_file(input_file):
+        print(f"Transform representation from fasta file {input_file}")
+        import uuid
+        tmp_file = str(uuid.uuid4())+'_tmp_esm'
+        tmp_file = os.path.join(tmp_dir, tmp_file)
+        esm_config = esm_config if isinstance(esm_config, dict) else {'Final_pool':False, 'maxlen':256}
+        esm_config['input_fasta'] = input_file
+        esm_config['output_file'] = tmp_file
+        esm_config['Return'] = False
+        if 'pretrained_model_params' not in esm_config:
+            esm_config['pretrained_model_params'] = os.path.join(find_root_path(), "./pretrained_model/esm2_t33_650M_UR50D.pt")
+        try:
+            fasta_to_EsmRep(**esm_config)
+        except:
+            print("Failed to transform fasta into ESM embeddings, make sure esm config is correct")
+
+    output_dict = {}
+       
+    try:
+        for tag, params in model_params_dict.items():
+            encoder_path, encoder_config = params
+            encoder = clef(**encoder_config)
+            tmp_output= output_file
+            loader_config = {'batch_size':64, 'max_num_padding':esm_config['maxlen']}
+            config = {
+              'input_file':tmp_file,
+              'output_file':tmp_output,
+              'model':encoder,
+              'params_path':encoder_path,
+              'loader_config':loader_config
+            }
+            generate_clef_feature(**config)
+
+    except:
+        print(f"No valid encoder params loaded, direct generate esm representations")
+        conf = {
+        'input_embeddings_path' : tmp_file,
+        'output_file' : output_file,
+        }
+        generate_ESM_feature(**conf)
+        print(f"ESM2 (protein) array saved as {output_file}")
+    print(f"Done..")
+    import shutil 
+    try:
+        shutil.rmtree(tmp_dir)
+    except:
+        print(f"Failed to remove temp file in {tmp_dir}.")
+
+    
 
 def predict_by_clef(input_file,
                     output_file,
@@ -106,7 +175,7 @@ def predict_by_clef(input_file,
         }
         generate_ESM_feature(**conf)
         rep_path = tmp_file+'pool'
-        classifier_path = os.path.join(find_root_path(), "./pretained_model/ESM_clef_T3SE_classifier.pt")"         
+        classifier_path = os.path.join(find_root_path(), "./pretained_model/ESM_clef_T3SE_classifier.pt")         
         classifer = test_dnn(1280)
         config = {
               'rep_path':rep_path,
