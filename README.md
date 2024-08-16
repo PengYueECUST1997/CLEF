@@ -4,10 +4,10 @@ Contrastive Learning of language Embedding and biological Feature is a contrasti
 
 ![](./Material/Main.jpg)
 
-##Set up
+## Set up
 
 ### Requirement
-The project requires the following Python version and library dependencies:
+The project is implemented with python (3.11.3), the following Python version and library dependencies are required:
 
 ```txt
 torch==2.0.1
@@ -18,13 +18,15 @@ numpy==1.23.4
 scikit-learn==1.1.3
 pandas==1.4.3
 ```
-We also tested the code with recent versions of these requirements, other reasonable versions should also work.
+We also tested the code with recent versions of these requirements, other reasonable versions should work as well.
 
-###Installation
+### Installation
+
 To install the required packages, run the following command using pip:
 ```bash
 pip install -r requirements.txt
 ```
+
 
 
 ## Contact
