@@ -5,11 +5,7 @@ from Module import TransformerLayer, sequence_mask
 
 class clef(nn.Module):
   
-<<<<<<< HEAD
   def __init__(self, num_embeds = 1280, feature_dim = 2437, num_hiddens = 128, 
-=======
-  def __init__(self, num_embeds = 1280, feature_dim = 768, num_hiddens = 128, 
->>>>>>> fe42717cb74680de2878cc0abe040b030b85d61f
                       finial_drop = 0.1,mlp_relu = True, feat_mlp_relu = True,
                      feature_norm = True):
     super().__init__()
@@ -76,7 +72,6 @@ class clef(nn.Module):
 
 
 
-<<<<<<< HEAD
 class clef_for_publish(nn.Module):
   
   def __init__(self, num_embeds = 1280,  feature_dim = 1280, proj_dim = 640, num_hiddens = 128, 
@@ -217,8 +212,6 @@ class clef_3DI(nn.Module):
           return X, proj_X
 
 
-=======
->>>>>>> fe42717cb74680de2878cc0abe040b030b85d61f
 class clef_PPI(nn.Module):
   
   def __init__(self, num_embeds = 1280, feature_dim = 256, num_hiddens = 128, 
