@@ -3,9 +3,10 @@ Contrastive Learning of language Embedding and biological Feature is a contrasti
 
 
 ![](./Material/Main.jpg)
+
 ##Set up
 
-## Requirement
+### Requirement
 The project requires the following Python version and library dependencies:
 
 ```txt
@@ -16,6 +17,13 @@ einops==0.7.0
 numpy==1.23.4
 scikit-learn==1.1.3
 pandas==1.4.3
+```
+We also tested the code with recent versions of these requirements, other reasonable versions should also work.
+
+###Installation
+To install the required packages, run the following command using pip:
+```bash
+pip install -r requirements.txt
 ```
 
 
