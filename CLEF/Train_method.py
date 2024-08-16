@@ -1,6 +1,10 @@
 import torch
 import torch.nn as nn
 import pandas as pd
+<<<<<<< HEAD
+=======
+import numpy as np
+>>>>>>> fe42717cb74680de2878cc0abe040b030b85d61f
 
 class trainer:
     def __init__(self, train_epoch, test_epoch = None):
