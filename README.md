@@ -60,15 +60,15 @@ This will create a file `Test_demo_clef`, containing the cross-modal representat
 After that, the generated representations can be used in other protein classification tasks, here we give an example of T6SE prediction:
 
 ```shell
-python .\PredictProteinClassification.py --In .\Test_demo_clef --Out Test_result.xlsx --weight ..\pretrained_model\clef_dpcpssm_T6_classifier.pt
+python PredictProteinClassification.py --In Test_demo_clef --Out Test_result.xlsx --weight ..\pretrained_model\clef_dpcpssm_T6_classifier.pt
 ```
 Parameters:
 
 - `--In` fasta file of input proteins.
-- `--Out` output prediction result excel table.
+- `--Out` output prediction result Excel table.
 - `--weight` classifier weights path, `clef_dpcpssm_T6_classifier.pt` is a simple multilayer perceptron (MLP) trained to discriminate T6SE and non-T6SE
 
-The prediction results will be listed in an excel table `Test_result.xlsx`.
+The prediction results will be listed in an Excel table `Test_result.xlsx`.
 
 ## Contact
 
