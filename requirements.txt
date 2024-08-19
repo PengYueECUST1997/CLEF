@@ -4,4 +4,3 @@ biopython==1.81
 einops==0.8.0
 numpy==1.24.3
 scikit-learn==1.2.2
-transformers==4.44.0
