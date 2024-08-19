@@ -36,6 +36,27 @@ pip install pandas
 
 ## Demo
 
+### Convert biological information into feature 
+
+For encoding multiple sequence alignments (MSA), you need to use the `msa-transformer` pretrained model ([model](https://dl.fbaipublicfiles.com/fair-esm/models/esm_msa1b_t12_100M_UR50S.pt) and [regression](https://dl.fbaipublicfiles.com/fair-esm/regression/esm_msa1b_t12_100M_UR50S-contact-regression.pt) downloads). In the example code below, we convert each MSA in the `"./Demo/Demo_MSA/"` directory in `.fasta` format into a 768-dimensional array:
+
+```python
+from src.Feature_transform import generate_msa_transformer_feat  # import feature transforming method 
+
+config = {
+    'input_alignments_dir': "./Demo/Demo_MSA/",  # input dirname of MSA 
+    'maxlen': 1024,
+    'output_file': "./Demo/Demo_MSA_feat",  # output feature path
+    'remapping_fasta': None,
+    'clust_pool': True,  # average pooling across the cluster (first) dimension 
+    'res_pool': True,  # average pooling across the residue (second) dimension
+    'maxmsa': 8,
+    'suffix': 'fasta'
+}
+generate_msa_transformer_feat(**config)
+```
+
+
 CLEF was trained under a contrative learning framework, and can generate cross-modal representations based on pre-trained protein language models (pLMs) of [ESM2](https://github.com/facebookresearch/esm)
 The generated cross-modal representations can be used in other downstream predictions task and enhance the protein classification performance.
 
@@ -52,6 +73,8 @@ python GenerateCrossModalityRep.py --In Test_demo.faa --Out Test_demo_clef --wei
 - `--Out` output protein representation arrays file.
 - `--weight` pretrained CLEF model parameters path, here we use the example model `Demo_clef_dpc_pssm_encoder.pt` trained by DPC-PSSM feature in  `pretrained_model`
 - `--supp_feat_dim` numbers of dimensions of biological features used for CLEF (need to match with pretrained CLEF model parameters and here is 400)
+
+**Note**: You need to download the pretrained model weights locally to use ESM for protein sequence encoding. You can manually download the ESM2-650M [model](https://dl.fbaipublicfiles.com/fair-esm/models/esm2_t33_650M_UR50D.pt) and [regression](https://dl.fbaipublicfiles.com/fair-esm/regression/esm2_t33_650M_UR50D-contact-regression.pt). Alternatively, `fair-esm` will automatically download the model to `C:\Users\xxx\.cache\torch\hub\checkpoints\`.
 
 This will create a file `Test_demo_clef`, containing the cross-modal representations of input proteins
 
