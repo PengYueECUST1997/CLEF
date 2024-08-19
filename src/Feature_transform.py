@@ -199,19 +199,21 @@ def generate_msa_transformer_feat(input_alignments_dir,
                                    output_file, 
                                    maxlen = 1024, maxmsa = 8, 
                                    suffix = 'fasta',
+                                   pretrained_model_params = '../pretained_model/esm_msa1b_t12_100M_UR50S.pt',
                                    clust_pool = False,
                                    res_pool = False,
                                    remapping_fasta = None,
                                    Return = True):
   import torch
   import esm
+  device = "cuda:0" if torch.cuda.is_available() else "cpu"
   aa_dict = {amino_acid: i for i, amino_acid in enumerate("ACDEFGHIKLMNPQRSTVWYX")}
   try:
-      model, alphabet = esm.pretrained.load_model_and_alphabet_local('../pretained_model/esm_msa1b_t12_100M_UR50S.pt')
+      model, alphabet = esm.pretrained.load_model_and_alphabet_local(pretrained_model_params)
   except:
       print(f"Skip loading local pre-trained ESM2 model from {pretrained_model_params}.\nTry to download msa-transformer from fair-esm")
-      input_embedding_net, alphabet = esm.pretrained.esm_msa1b_t12_100M_UR50S()
-  model = model.to('cuda:0').eval()
+      model, alphabet = esm.pretrained.esm_msa1b_t12_100M_UR50S()
+  model = model.to(device).eval()
   batch_converter = alphabet.get_batch_converter()
   output_dict = {}
   for alignment in os.listdir(input_alignments_dir)  :
@@ -228,7 +230,7 @@ def generate_msa_transformer_feat(input_alignments_dir,
       data.append((record.id, sequence))
     batch_labels, batch_strs, batch_tokens = batch_converter(data)
     batch_lens = (batch_tokens != alphabet.padding_idx).sum(1)
-    batch_tokens = batch_tokens.to('cuda:0')
+    batch_tokens = batch_tokens.to(device)
     with torch.no_grad():
       results = model(batch_tokens, repr_layers=[12], return_contacts=True)
     token_representations = results["representations"][12]
