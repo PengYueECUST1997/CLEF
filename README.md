@@ -51,7 +51,7 @@ python GenerateCrossModalityRep.py --In Test_demo.faa --Out Test_demo_clef --wei
 - `--In` fasta file of input proteins.
 - `--Out` output protein representation arrays file.
 - `--weight` pretrained CLEF model parameters path, here we use the example model `Demo_clef_dpc_pssm_encoder.pt` trained by DPC-PSSM feature in  `pretrained_model`
-- `--supp_feat_dim` numbers of dimensions of biological features used for CLEF (need to match with pretrained CLEF model parameters)
+- `--supp_feat_dim` numbers of dimensions of biological features used for CLEF (need to match with pretrained CLEF model parameters and here is 400)
 
 This will create a file `Test_demo_clef`, containing the cross-modal representations of input proteins
 

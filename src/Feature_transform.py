@@ -206,7 +206,11 @@ def generate_msa_transformer_feat(input_alignments_dir,
   import torch
   import esm
   aa_dict = {amino_acid: i for i, amino_acid in enumerate("ACDEFGHIKLMNPQRSTVWYX")}
-  model, alphabet = esm.pretrained.load_model_and_alphabet_local('../pretained_model/esm_msa1b_t12_100M_UR50S.pt')
+  try:
+      model, alphabet = esm.pretrained.load_model_and_alphabet_local('../pretained_model/esm_msa1b_t12_100M_UR50S.pt')
+  except:
+      print(f"Skip loading local pre-trained ESM2 model from {pretrained_model_params}.\nTry to download msa-transformer from fair-esm")
+      input_embedding_net, alphabet = esm.pretrained.esm_msa1b_t12_100M_UR50S()
   model = model.to('cuda:0').eval()
   batch_converter = alphabet.get_batch_converter()
   output_dict = {}
@@ -249,7 +253,6 @@ def generate_msa_transformer_feat(input_alignments_dir,
                  print(f'{record.id} failed to mapped the msa array id with {ID}')
                  continue
               mapped_output[record.id] = output_dict[ID]
-              #print(mapped_output[record.id][0])
           print(f"{len(mapped_output)} IDs mapped with {remapping_fasta}")
           output_dict = mapped_output
       except:
