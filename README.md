@@ -39,29 +39,6 @@ pip install pandas
 CLEF was trained under a contrative learning framework, and can generate cross-modal representations based on pre-trained protein language models (pLMs) of [ESM2](https://github.com/facebookresearch/esm)
 The generated cross-modal representations can be used in other downstream predictions task and enhance the protein classification performance.
 
-### Convert biological information into feature 
-
-
-For encoding multiple sequence alignments (MSA), we use the `msa-transformer` pretrained [model](https://dl.fbaipublicfiles.com/fair-esm/models/esm_msa1b_t12_100M_UR50S.pt) ( as well as [regression](https://dl.fbaipublicfiles.com/fair-esm/regression/esm_msa1b_t12_100M_UR50S-contact-regression.pt) is needed ). In the example code below, we convert each MSA in the `"./Demo/Demo_MSA/"` directory in `.fasta` format into a 768-dimensional array:
-
-```python
-from src.Feature_transform import generate_msa_transformer_feat  # import feature transforming method 
-
-config = {
-    'input_alignments_dir': "./Demo/Demo_MSA/",  # input dirname of MSA 
-    'maxlen': 1024,
-    'output_file': "./Demo/Demo_MSA_feat",  # output feature path
-    'remapping_fasta': None,
-    'clust_pool': True,  # average pooling across the cluster (first) dimension 
-    'res_pool': True,  # average pooling across the residue (second) dimension
-    'maxmsa': 8,
-    'suffix': 'fasta'
-}
-generate_msa_transformer_feat(**config)
-```
-
-Then a file containing the output arrays will be saved at `"./Demo/Demo_MSA_feat",`
-
 
 ### Generate Cross-Modal Representation
 
@@ -96,7 +73,34 @@ Parameters:
 
 The prediction results will be listed in an Excel table `Test_result.xlsx`.
 
+### Convert biological information into feature 
+
+If you want to experiment with incorporating different protein-related biological features into CLEF and train a new cross-modal representation encoder, you first need to encode the corresponding biological information into feature arrays or tensors. In our paper, we listed some features we experimented with and their extraction methods. Here is an example:
+
+
+For encoding multiple sequence alignments (MSA), we use the `msa-transformer` pretrained [model](https://dl.fbaipublicfiles.com/fair-esm/models/esm_msa1b_t12_100M_UR50S.pt) ( as well as [regression](https://dl.fbaipublicfiles.com/fair-esm/regression/esm_msa1b_t12_100M_UR50S-contact-regression.pt) is needed ). In the example code below, we convert each MSA in the `"./Demo/Demo_MSA/"` directory in `.fasta` format into a 768-dimensional array:
+
+```python
+from src.Feature_transform import generate_msa_transformer_feat  # import feature transforming method 
+
+config = {
+    'input_alignments_dir': "./Demo/Demo_MSA/",  # input dirname of MSA 
+    'maxlen': 1024,
+    'output_file': "./Demo/Demo_MSA_feat",  # output feature path
+    'remapping_fasta': None,
+    'clust_pool': True,  # average pooling across the cluster (first) dimension 
+    'res_pool': True,  # average pooling across the residue (second) dimension
+    'maxmsa': 8,
+    'suffix': 'fasta'
+}
+generate_msa_transformer_feat(**config)
+```
+
+Then a file containing the output arrays will be saved at `"./Demo/Demo_MSA_feat",`
+
+
 ## Contact
 
 Please contact Yue Peng at [756028108@qq.com] for questions.
+
 
