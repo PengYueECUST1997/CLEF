@@ -1,9 +1,4 @@
-import os
 import pandas as pd
-import sys
-
-
-    
 from Demo_utils import predict_from_1D_rep
 from argparse import ArgumentParser
 from Module import test_dnn

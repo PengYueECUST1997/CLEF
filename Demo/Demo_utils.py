@@ -227,3 +227,19 @@ def predict_by_clef(input_file,
         shutil.rmtree(tmp_dir)
     except:
         print(f"Failed to remove temp file in {tmp_dir}.")
+
+def train_clef(input_file_config,
+                output_dir,
+                model_initial = clef,
+                model_config = None,
+                tmp_dir = "./tmp",
+                embedding_generator = fasta_to_EsmRep,
+                esm_config = None,
+                train_config = None 
+                ):
+    if not os.path.exists(tmp_dir):
+        os.mkdir(tmp_dir)
+    
+    assert "fasta" in  input_file_config and "supp_feat" in input_file_config, "PATH for training .fasta file and feature file are needed"   
+    
+    
