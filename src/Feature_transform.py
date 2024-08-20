@@ -7,6 +7,15 @@ from Bio import SeqIO
 import torch
 import esm
 '''
+def find_root_path():
+    try:
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+    except:
+        current_dir = os.getcwd()
+    project_root = os.path.abspath(os.path.join(current_dir, os.pardir))
+    return project_root
+
+root_path = find_root_path()
 
 
 def fasta_to_OneHot(input_file, output_file = None, maxlen = 512, Return = True, FS_alphabet = False):
@@ -43,7 +52,7 @@ def fasta_to_OneHot(input_file, output_file = None, maxlen = 512, Return = True,
 
 
 def fasta_to_EsmRep(input_fasta, output_file = None, 
-                      pretrained_model_params = '../pretained_model/esm2_t33_650M_UR50D.pt',
+                      pretrained_model_params = None,
                       maxlen = 256,
                       Return = True, 
                       Final_pool = False):
@@ -53,6 +62,7 @@ def fasta_to_EsmRep(input_fasta, output_file = None,
   '''
   import torch
   import esm
+  pretrained_model_params = pretrained_model_params if pretrained_model_params else os.path.join(root_path, './pretrained_model/esm2_t33_650M_UR50D.pt')
   aa_dict = {amino_acid: i for i, amino_acid in enumerate("ACDEFGHIKLMNPQRSTVWYX")}
   device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
   try:
@@ -199,7 +209,7 @@ def generate_msa_transformer_feat(input_alignments_dir,
                                    output_file, 
                                    maxlen = 1024, maxmsa = 8, 
                                    suffix = 'fasta',
-                                   pretrained_model_params = '../pretained_model/esm_msa1b_t12_100M_UR50S.pt',
+                                   pretrained_model_params = None,
                                    clust_pool = False,
                                    res_pool = False,
                                    remapping_fasta = None,
@@ -208,6 +218,7 @@ def generate_msa_transformer_feat(input_alignments_dir,
   import esm
   device = "cuda:0" if torch.cuda.is_available() else "cpu"
   aa_dict = {amino_acid: i for i, amino_acid in enumerate("ACDEFGHIKLMNPQRSTVWYX")}
+  pretrained_model_params = pretrained_model_params if pretrained_model_params else os.path.join(root_path, '../pretrained_model/esm_msa1b_t12_100M_UR50S.pt')
   try:
       model, alphabet = esm.pretrained.load_model_and_alphabet_local(pretrained_model_params)
   except:

@@ -2,17 +2,7 @@ import os
 import pandas as pd
 import sys
 
-def find_root_path():
-    try:
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-    except:
-        current_dir = os.getcwd()
-    project_root = os.path.abspath(os.path.join(current_dir, os.pardir))
-    return project_root
 
-src_path = os.path.join(os.path.join(find_root_path(), "src"))
-if src_path not in sys.path:
-    sys.path.insert(0, src_path)
     
 from Demo_utils import predict_from_1D_rep
 from argparse import ArgumentParser

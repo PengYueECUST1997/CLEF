@@ -42,7 +42,7 @@ The generated cross-modal representations can be used in other downstream predic
 ### Convert biological information into feature 
 
 
-For encoding multiple sequence alignments (MSA), we use the `msa-transformer` pretrained [model](https://dl.fbaipublicfiles.com/fair-esm/models/esm_msa1b_t12_100M_UR50S.pt ( as well as [regression](https://dl.fbaipublicfiles.com/fair-esm/regression/esm_msa1b_t12_100M_UR50S-contact-regression.pt) is needed ). In the example code below, we convert each MSA in the `"./Demo/Demo_MSA/"` directory in `.fasta` format into a 768-dimensional array:
+For encoding multiple sequence alignments (MSA), we use the `msa-transformer` pretrained [model](https://dl.fbaipublicfiles.com/fair-esm/models/esm_msa1b_t12_100M_UR50S.pt) ( as well as [regression](https://dl.fbaipublicfiles.com/fair-esm/regression/esm_msa1b_t12_100M_UR50S-contact-regression.pt) is needed ). In the example code below, we convert each MSA in the `"./Demo/Demo_MSA/"` directory in `.fasta` format into a 768-dimensional array:
 
 ```python
 from src.Feature_transform import generate_msa_transformer_feat  # import feature transforming method 
