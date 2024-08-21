@@ -101,7 +101,7 @@ def generate_protein_representation(input_file,
         if 'pretrained_model_params' not in esm_config:
             esm_config['pretrained_model_params'] = os.path.join(find_root_path(), "./pretrained_model/esm2_t33_650M_UR50D.pt")
         try:
-            fasta_to_EsmRep(**esm_config)
+            embedding_generator(**esm_config)
         except:
             print("Failed to transform fasta into ESM embeddings, make sure esm config is correct")
 
@@ -158,9 +158,9 @@ def predict_by_clef(input_file,
         esm_config['input_fasta'] = input_file
         esm_config['output_file'] = tmp_file
         esm_config['Return'] = False
-        esm_config['pretrained_model_params'] = os.path.join(find_root_path(), "../pretained_model/esm2_t33_650M_UR50D.pt")
+        esm_config['pretrained_model_params'] = os.path.join(find_root_path(), "./pretrained_model/esm2_t33_650M_UR50D.pt")
         try:
-            fasta_to_EsmRep(**esm_config)
+            embedding_generator(**esm_config)
         except:
             print("Failed to transform fasta into ESM embeddings, make sure esm config is correct")
     else:
@@ -239,7 +239,80 @@ def train_clef(input_file_config,
                 ):
     if not os.path.exists(tmp_dir):
         os.mkdir(tmp_dir)
-    
     assert "fasta" in  input_file_config and "supp_feat" in input_file_config, "PATH for training .fasta file and feature file are needed"   
-    
-    
+    input_file = input_file_config['fasta']
+    input_feat = input_file_config['supp_feat']
+    assert is_fasta_file(input_file), f"{input_file} is not a fasta format file"
+    assert get_feature_dim(input_feat), f"{input_feat} is not a dict containing feature arrays"
+    print(f"Transform representation from fasta file {input_file}")
+    import uuid
+    tmp_file = str(uuid.uuid4())+'_tmp_esm'
+    tmp_file = os.path.join(tmp_dir, tmp_file)
+    esm_config = esm_config if isinstance(esm_config, dict) else {'Final_pool':False, 'maxlen':256, 'Return':False}
+    esm_config['input_fasta'] = input_file
+    esm_config['output_file'] = tmp_file
+    esm_config['Return'] = False
+    if 'pretrained_model_params' not in esm_config:
+        esm_config['pretrained_model_params'] = os.path.join(find_root_path(), "./pretrained_model/esm2_t33_650M_UR50D.pt")
+    try:
+        embedding_generator(**esm_config)
+    except:
+        raise TypeError("Failed to transform fasta into ESM embeddings, make sure esm config is correct")
+    import torch.optim as optim
+    import random
+    import pandas as pd
+    from Data_utils import Potein_rep_datasets
+    from Module import ContrastiveLoss
+    device = 'cuda:0' if torch.cuda.is_available() else 'cpu' 
+    model_config = model_config if model_config else {'num_embeds':1280,"feature_dim":get_feature_dim(input_feat)[-1]}
+    model = model_initial(**model_config).to(device)
+    data_path_config = {'esm_feature':tmp_file, "B_feature":input_feat}
+    Dataset = Potein_rep_datasets(data_path_config)
+    if len(Dataset) == 0:
+        raise ValueError("Failed to load featurea for training")
+    train_iterator = Dataset.Dataloader
+    test_iterator = Dataset.Dataloader
+    monitor = Metrics(metrics_dict = {})
+    loss_function= ContrastiveLoss()
+    test_config = {}
+    if train_config:
+        for x in ['lr', 'batch_size', 'num_epoch']:
+            assert x in  train_config, "'lr', 'batch_size' and 'num_epoch' are needed when not using default train configuration "
+        lr = train_config['lr']
+        batch_size = train_config['batch_size']
+        num_epoch = train_config['num_epoch']
+
+    else:
+        lr = 0.0002
+        batch_size = 128
+        num_epoch = 20
+    optimizer = optim.Adam(model.parameters(), lr=lr)
+    epoch_config = {
+        'train_iterator':Dataset.Dataloader,
+        'loss_function':loss_function, 
+        'optimizer':optimizer, 
+        'batch_size':batch_size, 
+        'max_num_padding':esm_config['maxlen'], 
+        'monitor':monitor,
+        'device':device
+        }
+    patience = 30 if 'patience' not in train_config else train_config['patience']
+    T = trainer(train_epoch = train_epoch_clef)        
+    print("Training..")
+    T.Train(model, 
+            num_epoch=num_epoch,
+            train_config=epoch_config,
+            test_config=test_config, 
+            early_stop_patience=patience,
+            log_path = output_dir)
+    print(f"Done..")
+    import shutil 
+    try:
+        shutil.rmtree(tmp_dir)
+    except:
+        print(f"Failed to remove temp file in {tmp_dir}.")
+
+        
+        
+        
+      
