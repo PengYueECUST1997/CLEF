@@ -100,7 +100,7 @@ Then a file containing the output arrays will be saved at `"./Demo/Demo_MSA_feat
 
 ### Train a CLEF model 
 
- To train a CLEF encoder, you need to prepare `.fasta` files for the protein samples and the corresponding feature files for those proteins. Training with different features will yield different CLEF models, generating distinct cross-modal representations that may perform differently in various downstream tasks. In our provided demo code, you can input feature vectors of any length (1D tensors) for training:
+ To train a CLEF encoder, you need to prepare `fasta` format files for the protein samples and the corresponding feature files for those proteins. Training with different features will yield different CLEF models, generating distinct cross-modal representations that may perform differently in various downstream tasks. In our provided demo code, you can input feature vectors of any length (1D tensors) for training:
 
 ```shell
 python CLEFTrain.py --Fa Train_demo.faa --Feat Train_demo_feat --Out Demo_clef --lr 0.0002 --btz 128 --epoch 20
