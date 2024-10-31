@@ -135,3 +135,28 @@ def compute_acc_multi_binary(all_yhat, all_labels, flexible_cutoff = False):
         y_labels = np.array(all_labels).flatten()
         highest_score = metrics.accuracy_score(y_labels, y_pred)
     return highest_score
+
+
+def compute_macro_f1(all_yhat, all_labels, flexible_cutoff = False):
+    y_pred = np.argmax(np.array(all_yhat), axis=1)
+
+    highest_score = metrics.f1_score(all_labels, y_pred, average='macro')
+    
+    return highest_score
+  
+
+def compute_macro_mcc(all_yhat, all_labels, flexible_cutoff = False):
+
+    y_pred = np.argmax(np.array(all_yhat), axis=1)
+    num_classes = all_yhat.shape[1]
+    mcc_scores = []
+    for cls in range(num_classes):
+        binarized_labels = (all_labels == cls).astype(int)
+        binarized_predictions = (y_pred == cls).astype(int)
+        
+        mcc = metrics.matthews_corrcoef(binarized_labels, binarized_predictions)
+        mcc_scores.append(mcc)
+
+    highest_score = np.mean(mcc_scores)
+    
+    return highest_score

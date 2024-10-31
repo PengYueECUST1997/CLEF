@@ -68,7 +68,12 @@ def fasta_to_EsmRep(input_fasta, output_file = None,
   try:
       input_embedding_net, alphabet = esm.pretrained.load_model_and_alphabet_local(pretrained_model_params)
   except:
-      print(f"Skip loading local pre-trained ESM2 model from {pretrained_model_params}.\nTry to download ESM2-650M from fair-esm")
+      print(f"Skip loading local pre-trained ESM2 model from {pretrained_model_params}.\nTry to use ESM2-650M downloaded from hub")
+      weight_path = os.path.dirname(os.path.abspath(pretrained_model_params))
+      if os.path.exists(weight_path) and os.path.isdir(weight_path):
+            torch.hub.set_dir(weight_path)
+      else:
+            print(f"Download ESM2-650M to ./cache")
       input_embedding_net, alphabet = esm.pretrained.esm2_t33_650M_UR50D()
   batch_converter = alphabet.get_batch_converter()
   input_embedding_net = input_embedding_net.to(device)

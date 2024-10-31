@@ -10,15 +10,16 @@ Contrastive Learning of language Embedding and biological Feature is a contrasti
 The project is implemented with python (3.11.3), the following library packages are required:
 
 ```txt
-torch==2.0.1
+torch==2.0.0
 fair-esm==2.0.0
-biopython==1.79
-einops==0.7.0
-numpy==1.23.4
-scikit-learn==1.1.3
+biopython==1.83
+einops==0.8.0
+numpy==1.24.2
+scikit-learn==1.2.2
+pandas==2.0.3
 ```
 We also tested the code with recent versions of these requirements, other reasonable versions should work as well.
-The code was tested on Windows.
+The code was tested on Windows and Ubuntu.
 
 ### Installation
 
@@ -29,10 +30,6 @@ To install the required packages, run the following command using pip:
 pip install -r requirements.txt
 ```
 
-To output the result table, the package `pandas` was used in code: 
-```shell
-pip install pandas 
-```
 
 ## Demo
 
@@ -73,34 +70,13 @@ Parameters:
 
 The prediction results will be listed in an Excel table `Test_result.xlsx`.
 
-### Convert biological information into feature 
-
-If you want to experiment with incorporating different protein-related biological features into CLEF and train a new cross-modal representation encoder, you first need to encode the corresponding biological information into feature arrays or tensors. In our paper, we listed some features we experimented with and their extraction methods. Here is an example:
-
-
-For encoding multiple sequence alignments (MSA), we use the `msa-transformer` pretrained [model](https://dl.fbaipublicfiles.com/fair-esm/models/esm_msa1b_t12_100M_UR50S.pt) ( as well as [regression](https://dl.fbaipublicfiles.com/fair-esm/regression/esm_msa1b_t12_100M_UR50S-contact-regression.pt) is needed ). In the example code below, we convert each MSA in the `"./Demo/Demo_MSA/"` directory in `.fasta` format into a 768-dimensional array:
-
-```python
-from src.Feature_transform import generate_msa_transformer_feat  # import feature transforming method 
-
-config = {
-    'input_alignments_dir': "./Demo/Demo_MSA/",  # input dirname of MSA 
-    'maxlen': 1024,
-    'output_file': "./Demo/Demo_MSA_feat",  # output feature path
-    'remapping_fasta': None,
-    'clust_pool': True,  # average pooling across the cluster (first) dimension 
-    'res_pool': True,  # average pooling across the residue (second) dimension
-    'maxmsa': 8,
-    'suffix': 'fasta'
-}
-generate_msa_transformer_feat(**config)
-```
-
-Then a file containing the output arrays will be saved at `"./Demo/Demo_MSA_feat",`
 
 ### Train a CLEF model 
 
- To train a CLEF encoder, you need to prepare `fasta` format files for the protein samples and the corresponding feature files for those proteins. Training with different features will yield different CLEF models, generating distinct cross-modal representations that may perform differently in various downstream tasks. In our provided demo code, you can input feature vectors of any length (1D tensors) for training:
+ The core of this framework is provide a simple method to perform cross-modal training between embeddings from language model and other 
+ To train a CLEF encoder, you need to prepare `fasta` format files for the protein samples (or encoded 2D-representations) and the corresponding feature files for those proteins. 
+Training with different features will yield different CLEF models, generating distinct cross-modal representations that may perform differently in various downstream tasks. 
+In our provided demo code, you can input multiple feature vectors of any length (a dict looks like {sample_id:1D numpy array}) for training:
 
 ```shell
 python CLEFTrain.py --Fa Train_demo.faa --Feat Train_demo_feat --Out Demo_clef --lr 0.0002 --btz 128 --epoch 20
