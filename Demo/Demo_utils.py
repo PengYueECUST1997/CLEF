@@ -21,7 +21,7 @@ if src_path not in sys.path:
 from Data_utils import Potein_rep_datasets
 from utils import *
 from Feature_transform import *
-from CLEF import clef
+from CLEF import *
 from Module import test_dnn
 
 
@@ -29,66 +29,161 @@ from Module import test_dnn
     
     
 
-def predict_from_1D_rep(rep_path, model, params_path,
-                        output_file = None,
+def predict_from_1D_rep(input_file, initial_model, params_path,
+                        output_file = None,cutoff = None,
                         Return = True):
-    predictset = Potein_rep_datasets({'feature':rep_path})
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-    model.to(device)
-    if isinstance(model, torch.nn.Module):
-        model.eval()
-    if params_path:
-      print(f"Loading model weights from {params_path}")
-      try:
-        loaded_params = torch.load(params_path, map_location=device)
-        model.load_state_dict(loaded_params)
-        print(f"Load classifier weights successfully")
-      except:
-        print(f"Failed to load model weights from {params_path}")
+    num_hidden = check_hidden_layer_dimensions(load_feature_from_local(input_file, silence=True))
+    assert num_hidden, f"Dimension numbers of the last dimension is not same; {input_file}"
 
-    output_dict = {
-      'ID':[]
+    model = initial_model(num_hidden).to(device)
+    eff_type = os.path.split(params_path)[-1].lower().split('classifier')[0].split('-')[-1]
+    eff_type = f'{eff_type.upper()}SE' if eff_type in ['t3', 't4', 't6'] else 'Effector'
+    Dataset = Potein_rep_datasets({'feature':input_file})
+    if not cutoff:
+        try:
+            cutoff = float(os.path.split(params_path)[-1].lower().split('cutoff')[0].split('-')[-1])
+        except:
+            cutoff = 0.5
+    print(f'Binary cutoff of {cutoff} used.')
+    output = {
+        'ID':[],
+        'pred':[],
+        eff_type:[]
     }
-    tmp_scores = []
-    for batch in predictset.Dataloader(batch_size=64, shuffle=False, test=True, max_num_padding=None, device=device):
+    model.load_state_dict(torch.load(params_path))
+    model.eval()
+    Dataset.test_range = range(len(Dataset))
+    for batch in Dataset.Dataloader(batch_size=32,shuffle=False,max_num_padding=None,test=True,device=device):
         with torch.no_grad():
-            y_hat = model(batch)
-        output_dict['ID'].extend(batch['ID'])
-        y_hat = y_hat.detach().to('cpu').numpy()
-        tmp_scores.append(y_hat)
-    tmp_scores = np.concatenate(tmp_scores, 0) 
-    if len(tmp_scores.shape) > 1:
-        for i in range(tmp_scores.shape[1]):
-            tag = f"score_{i}"
-            output_dict[tag] = tmp_scores[:,i]
-    else:
-        output_dict['score'] = tmp_scores
-    output_dict = pd.DataFrame(output_dict)
-    
+            y_pred = model(batch)
+        y_pred = y_pred.detach().to('cpu').numpy()
+        output['ID'].extend(batch['ID'])
+        output['pred'].append(y_pred)
+    output['pred'] = np.concatenate(output['pred'], 0)  
+    output['pred'] = list(output['pred'])  
+    output[eff_type] = ['Yes' if x >= cutoff else 'No' for x in output['pred']]
+    import pandas as pd
+    output = pd.DataFrame(output)
     if output_file:
         try:
-            output_dict.to_excel(output_file)
+            output.to_csv(output_file)
             print(f'Predictions saved as {output_file}')
         except:
             print(f'Predictions failed to save as {output_file}')
             import uuid
             tmp_name = str(uuid.uuid4())+'_clef'
-            output_file =os.path.join(os.path.dirname(input_file), tmp_name) 
-            output_dict.to_excel(output_file)
-            print(f'Predictions saved as {output_file}')
-    
+            tag = os.path.split(input_file)[-1]
+            output_file = os.path.join(os.path.dirname(input_file), f"./{tag}_{eff_type}_prediction.csv") 
+            output.to_csv(output_file)
+            print(f'Predictions saved as {output_file}')    
     if Return:
-        return output_dict
+        return output
 
 def generate_protein_representation(input_file,
                     output_file,
-                    model_params_dict = None,
+                    model_params_path = None,
                     tmp_dir = "./tmp",
                     embedding_generator = fasta_to_EsmRep,
-                    esm_config = None
+                    esm_config = None,
+                    remove_tmp = True,
+                    mode = 'clef',
+                    maxlength = 256    # Hyperparameter determining how many amino acids are used in protein-encoding by PLM
                     ):
     if not os.path.exists(tmp_dir):
         os.mkdir(tmp_dir)
+        print(f'Make a temp directory:{tmp_dir}')
+    if is_fasta_file(input_file):
+        print(f"Transform representation from fasta file {input_file}")
+        import uuid
+        tmp_file = str(uuid.uuid4())+'_tmp_esm'
+        tmp_file = os.path.join(tmp_dir, tmp_file)
+        esm_config = esm_config if isinstance(esm_config, dict) else {'Final_pool':False, 'maxlen':maxlength}
+        esm_config['input_fasta'] = input_file
+        esm_config['output_file'] = tmp_file
+        esm_config['Return'] = False
+        if 'pretrained_model_params' not in esm_config:
+            esm_config['pretrained_model_params'] = os.path.join(find_root_path(), "./pretrained_model/esm2_t33_650M_UR50D.pt")
+        try:
+            embedding_generator(**esm_config)
+        except:
+            print("Failed to transform fasta into ESM embeddings, make sure esm config is correct")
+            import shutil
+            shutil.rmtree(tmp_dir)
+            sys.exit(1)
+
+       
+    if mode.lower() == 'clef':
+        print(f"Using pre-trained encoder in CLEF to generate protein representations")
+        num_hidden = check_hidden_layer_dimensions(load_feature_from_local(tmp_file, silence=True))
+        assert num_hidden, "Dimension numbers of the last dimension is not same"
+        device='cuda:0' if torch.cuda.is_available() else 'cpu'
+        encoder = clef_enc(num_hidden).to(device)
+        try:
+            encoder.load_state_dict(torch.load(model_params_path, map_location=torch.device('cpu')), strict=False)
+            print(f"Successfully load CLEF params from {model_params_path}.")
+        except:
+            print(f"Failed to load CLEF params from {model_params_path}, make sure it is a valid weights for CLEF")
+            import shutil
+            shutil.rmtree(tmp_dir)
+            sys.exit(1)
+        tmp_output= output_file
+        loader_config = {'batch_size':64, 'max_num_padding':256}
+        config = {
+          'input_file':tmp_file,
+          'output_file':tmp_output,
+          'model':encoder,
+          'params_path':None,
+          'loader_config':loader_config
+        }
+        generate_clef_feature(**config)
+
+    elif mode.lower() == 'esm':
+        print(f"Direct generate esm representations")
+        conf = {
+        'input_embeddings_path' : tmp_file,
+        'output_file' : output_file,
+        }
+        generate_ESM_feature(**conf)
+        print(f"ESM2 (protein) array saved as {output_file}")
+    else:
+        print(f"{mode} is not a valid mode tag, please select [clef] or [esm] for protein-reps generation")
+        import shutil
+        shutil.rmtree(tmp_dir)
+        sys.exit(1)
+        
+    print(f"Done..")
+    
+    if remove_tmp:
+        import shutil 
+        try:
+            shutil.rmtree(tmp_dir)
+            print(f"Remove temp directory: {tmp_dir}.")
+        except:
+            print(f"Failed to remove temp file in {tmp_dir}.")
+
+def train_clef(input_file_config,
+                output_dir,
+                model_initial = clef_multimodal,
+                tmp_dir = "./tmp",
+                embedding_generator = fasta_to_EsmRep,
+                esm_config = None,
+                train_config = None,
+                ):
+    log = []
+    if not os.path.exists(tmp_dir):
+        os.mkdir(tmp_dir)
+    assert "seq" in  input_file_config , "For training.sequence representation or fasta file"   
+    input_file = input_file_config['seq']
+    feat_dim_config = {}
+    for key, value in input_file_config.items():
+        if key != 'seq':
+            feat_dim = check_hidden_layer_dimensions(load_feature_from_local(value, silence=True))
+            assert feat_dim, f'Dimension numbers of the last dimension is not same; {value}'
+            feat_dim_config[key] = feat_dim
+            line = f'{key}--{value}; num_dims:{feat_dim}'
+            print(line)
+            log.append(f'{line}\n')
     if is_fasta_file(input_file):
         print(f"Transform representation from fasta file {input_file}")
         import uuid
@@ -104,215 +199,97 @@ def generate_protein_representation(input_file,
             embedding_generator(**esm_config)
         except:
             print("Failed to transform fasta into ESM embeddings, make sure esm config is correct")
-
-    output_dict = {}
-       
-    try:
-        for tag, params in model_params_dict.items():
-            encoder_path, encoder_config = params
-            encoder = clef(**encoder_config)
-            tmp_output= output_file
-            loader_config = {'batch_size':64, 'max_num_padding':esm_config['maxlen']}
-            config = {
-              'input_file':tmp_file,
-              'output_file':tmp_output,
-              'model':encoder,
-              'params_path':encoder_path,
-              'loader_config':loader_config
-            }
-            generate_clef_feature(**config)
-
-    except:
-        print(f"No valid encoder params loaded, direct generate esm representations")
-        conf = {
-        'input_embeddings_path' : tmp_file,
-        'output_file' : output_file,
-        }
-        generate_ESM_feature(**conf)
-        print(f"ESM2 (protein) array saved as {output_file}")
-    print(f"Done..")
-    import shutil 
-    try:
-        shutil.rmtree(tmp_dir)
-    except:
-        print(f"Failed to remove temp file in {tmp_dir}.")
-
-    
-
-def predict_by_clef(input_file,
-                    output_file,
-                    model_params_dict = None,
-                    tmp_dir = "./tmp",
-                    embedding_generator = fasta_to_EsmRep,
-                    esm_config = None,
-                    transform_method = generate_clef_feature, 
-                    ):
-    if not os.path.exists(tmp_dir):
-        os.mkdir(tmp_dir)
-    if is_fasta_file(input_file):
-        print(f"Transform representation from fasta file {input_file}")
-        import uuid
-        tmp_file = str(uuid.uuid4())+'_tmp_esm'
-        tmp_file = os.path.join(tmp_dir, tmp_file)
-        esm_config = esm_config if isinstance(esm_config, dict) else {'Final_pool':False, 'maxlen':256, 'Return':False}
-        esm_config['input_fasta'] = input_file
-        esm_config['output_file'] = tmp_file
-        esm_config['Return'] = False
-        esm_config['pretrained_model_params'] = os.path.join(find_root_path(), "./pretrained_model/esm2_t33_650M_UR50D.pt")
-        try:
-            embedding_generator(**esm_config)
-        except:
-            print("Failed to transform fasta into ESM embeddings, make sure esm config is correct")
+            import shutil
+            shutil.rmtree(tmp_dir)
+            sys.exit(1)
     else:
-        print(f"Direct load esm representations from {input_file}")
-    
-    output_dict = {}
-    if not isinstance(model_params_dict, dict):
-        print(f"No valid encoder params loaded, direct use esm representations for prediction")
-        conf = {
-        'input_embeddings_path' : tmp_file,
-        'output_file' :tmp_file+'pool',
-        }
-        generate_ESM_feature(**conf)
-        rep_path = tmp_file+'pool'
-        classifier_path = os.path.join(find_root_path(), "./pretained_model/ESM_clef_T3SE_classifier.pt")         
-        classifer = test_dnn(1280)
-        config = {
-              'rep_path':rep_path,
-              'output_file':None,
-              'model':classifer,
-              'params_path':classifier_path,
-              'Return':True
-        }        
-        output_dict = predict_from_1D_rep(**config)
-        
-    else:
-        for tag, params in model_params_dict.items():
-            encoder_path, encoder_config = params['encoder']
-            encoder = clef(**encoder_config)
-            tmp_output= tmp_file.replace('esm', f'{tag}_clef')
-            params_path = "../Benchmark-partB/Bastion3/params/encoder_params"
-            loader_config = {'batch_size':64, 'max_num_padding':esm_config['maxlen']}
-            config = {
-              'input_file':tmp_file,
-              'output_file':tmp_output,
-              'model':encoder,
-              'params_path':encoder_path,
-              'loader_config':loader_config
-            }
-            generate_clef_feature(**config)
-            
-            rep_path = tmp_output
-            classifier_path, classifier_config = params['classifier']           
-            classifer = test_dnn(**classifier_config)
-            config = {
-              'rep_path':rep_path,
-              'output_file':None,
-              'model':classifer,
-              'params_path':classifier_path,
-              'Return':True
-            }        
-            tmp_preds = predict_from_1D_rep(**config)
-            if len(output_dict) == 0:
-                output_dict = tmp_preds
-            else:
-                assert min(output_dict['ID'] == tmp_preds['ID'])
-                output_dict = pd.merge(output_dict, tmp_preds, on='ID', how='inner')
-            output_dict.columns = [x if i <len(output_dict.columns) - 1 else f'score_{tag}' for i,x in enumerate(output_dict.columns)]
-    
-    output_dict.to_excel(output_file, index = False)
-    print(f"Predictions saved at {output_file}")
-    import shutil 
-    try:
-        shutil.rmtree(tmp_dir)
-    except:
-        print(f"Failed to remove temp file in {tmp_dir}.")
-
-def train_clef(input_file_config,
-                output_dir,
-                model_initial = clef,
-                model_config = None,
-                tmp_dir = "./tmp",
-                embedding_generator = fasta_to_EsmRep,
-                esm_config = None,
-                train_config = None 
-                ):
-    if not os.path.exists(tmp_dir):
-        os.mkdir(tmp_dir)
-    assert "fasta" in  input_file_config and "supp_feat" in input_file_config, "PATH for training .fasta file and feature file are needed"   
-    input_file = input_file_config['fasta']
-    input_feat = input_file_config['supp_feat']
-    assert is_fasta_file(input_file), f"{input_file} is not a fasta format file"
-    assert get_feature_dim(input_feat), f"{input_feat} is not a dict containing feature arrays"
-    print(f"Transform representation from fasta file {input_file}")
-    import uuid
-    tmp_file = str(uuid.uuid4())+'_tmp_esm'
-    tmp_file = os.path.join(tmp_dir, tmp_file)
-    esm_config = esm_config if isinstance(esm_config, dict) else {'Final_pool':False, 'maxlen':256, 'Return':False}
-    esm_config['input_fasta'] = input_file
-    esm_config['output_file'] = tmp_file
-    esm_config['Return'] = False
-    if 'pretrained_model_params' not in esm_config:
-        esm_config['pretrained_model_params'] = os.path.join(find_root_path(), "./pretrained_model/esm2_t33_650M_UR50D.pt")
-    try:
-        embedding_generator(**esm_config)
-    except:
-        raise TypeError("Failed to transform fasta into ESM embeddings, make sure esm config is correct")
+        print(f"Direct use {input_file} as sequence representation")
+        tmp_file = input_file
     import torch.optim as optim
     import random
     import pandas as pd
     from Data_utils import Potein_rep_datasets
-    from Module import ContrastiveLoss
+    from Module import InfoNCELoss
     device = 'cuda:0' if torch.cuda.is_available() else 'cpu' 
-    model_config = model_config if model_config else {'num_embeds':1280,"feature_dim":get_feature_dim(input_feat)[-1]}
-    model = model_initial(**model_config).to(device)
-    data_path_config = {'esm_feature':tmp_file, "B_feature":input_feat}
+    if device == 'cpu':
+        print(f'**Note:model will be trained on CPU, it may take very long time')
+    num_embeds = check_hidden_layer_dimensions(load_feature_from_local(tmp_file, silence=True))
+    assert num_embeds, f'make sure {tmp_file} is a dict with ID:sequence_reps; sequence_reps should be 2D numpy with shape of [protein_length, num_hidden]'
+    line = f'Sequnce data--{input_file}; num_dims:{num_embeds}'
+    log.append(f'{line}\n')
+    model=model_initial(num_embeds, feat_dim_config).to(device)
+    data_path_config = {'esm_feature':tmp_file}
+    data_path_config.update({key:value for key, value in input_file_config.items() if key != 'seq'})
     Dataset = Potein_rep_datasets(data_path_config)
     if len(Dataset) == 0:
-        raise ValueError("Failed to load featurea for training")
-    train_iterator = Dataset.Dataloader
-    test_iterator = Dataset.Dataloader
-    monitor = Metrics(metrics_dict = {})
-    loss_function= ContrastiveLoss()
-    test_config = {}
+        raise ValueError("Failed to load feature for training")
+        import shutil
+        shutil.rmtree(tmp_dir)
+        sys.exit(1)
+    loss_function= InfoNCELoss()
     if train_config:
         for x in ['lr', 'batch_size', 'num_epoch']:
             assert x in  train_config, "'lr', 'batch_size' and 'num_epoch' are needed when not using default train configuration "
         lr = train_config['lr']
         batch_size = train_config['batch_size']
         num_epoch = train_config['num_epoch']
-
+        maxlen = 256 if 'maxlen' not in train_config else train_config['maxlen']
     else:
-        lr = 0.0002
+        lr = 0.00002
         batch_size = 128
         num_epoch = 20
-    optimizer = optim.Adam(model.parameters(), lr=lr)
-    epoch_config = {
-        'train_iterator':Dataset.Dataloader,
-        'loss_function':loss_function, 
-        'optimizer':optimizer, 
-        'batch_size':batch_size, 
-        'max_num_padding':esm_config['maxlen'], 
-        'monitor':monitor,
-        'device':device
-        }
-    patience = 30 if 'patience' not in train_config else train_config['patience']
-    T = trainer(train_epoch = train_epoch_clef)        
-    print("Training..")
-    T.Train(model, 
-            num_epoch=num_epoch,
-            train_config=epoch_config,
-            test_config=test_config, 
-            early_stop_patience=patience,
-            log_path = output_dir)
+        maxlen = 256
+    optimizer=optim.Adam(model.parameters(),lr=lr)
+    activation = None
+    temp_check_point = output_dir
+    import time
+    save_by_epoch = False
+    #check_list = [10, 15, 20, 25, 30]
+    check_list = []
+    
+    if not os.path.exists(temp_check_point):
+        os.mkdir(temp_check_point)
+    s = time.time()
+    for epoch in range(num_epoch):
+        Loss=0
+        sum=0 
+        for batch in Dataset.Dataloader(batch_size=batch_size,  max_num_padding=maxlen, device=device):
+            with torch.no_grad():
+                model.eval()
+                _, proj, Y = model(batch)
+                loss = loss_function(proj, Y)
+                assert not np.isnan(loss.item()), 'odd loss value appears'
+                Loss += loss.item()
+                sum += Y.shape[0]
+            model.train()
+            _, proj, Y = model(batch)
+            loss = loss_function(proj,Y)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+        e = time.time()
+        t = e - s
+        avg_loss = Loss / sum
+        line = f'Epoch: {epoch}; Train loss:{avg_loss}; time:{t} s'
+        print(line)
+        log.append(f'{line}\n')
+        tmp_check_path = os.path.join(temp_check_point, f"./{batch_size}_{epoch}.pt")
+        if save_by_epoch:
+            torch.save(model.state_dict(), tmp_check_path)
+        elif epoch == num_epoch - 1 or epoch + 1 in check_list:
+            torch.save(model.state_dict(), tmp_check_path)
+            line = f'Epoch:{epoch} Checkpoint weights saved--{tmp_check_path}'
+            print(line)
+            log.append(f'{line}\n')
+    e = time.time()
+    print(f'Total training time : {e-s} seconds')
     print(f"Done..")
     import shutil 
     try:
         shutil.rmtree(tmp_dir)
     except:
         print(f"Failed to remove temp file in {tmp_dir}.")
-
-        
-        
-        
+    log_path = os.path.join(output_dir, 'log.txt')
+    with open(log_path, 'w') as f:
+        f.writelines(log)
       

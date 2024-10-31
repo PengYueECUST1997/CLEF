@@ -1,27 +1,27 @@
 from Demo_utils import generate_protein_representation
 from argparse import ArgumentParser
-
+import os
+from pathlib import Path
 
 
 def main(args):
     mode = args.mode
     esm_model_path = args.esm_model_path
     model_params_path = args.weight
-    tag = "exp"
     input_file = args.In
     output_file = args.Out
-    supp_feat_dim = args.supp_feat_dim
-    
-    model_params_dict = {
-      tag: [model_params_path, {"feature_dim":supp_feat_dim}]
-    }
+    maxlength = args.Maxlen
     esm_config = {'pretrained_model_params':esm_model_path} if esm_model_path else None
     
+    model_params_path = Path(os.path.abspath(model_params_path))
     config = {
       'input_file':input_file,
       'output_file':output_file,
-      'model_params_dict':model_params_dict,
-      'esm_config':esm_config
+      'model_params_path':model_params_path,
+      'esm_config':esm_config,
+      'maxlength':256,
+      'mode':mode
+        
     }
     generate_protein_representation(**config)
 
@@ -35,16 +35,14 @@ if __name__ == '__main__':
                         help="fasta file of input proteins")
     parser.add_argument('--Out', required=True,  type=str,
                         help="output protein representation arrays path")
-    
-    
-    parser.add_argument('--mode', required=False, choices=['esm', 'clef'], type=str,
+    parser.add_argument('--Maxlen', default=256,  type=int,
+                        help="Max length of protein sequence input into model")
+    parser.add_argument('--mode', default='clef', choices=['esm', 'clef'], type=str,
                         help="Using clef-generated cross-modality representations or direct using ESM2 embeddings. [clef , esm]")
     parser.add_argument('--esm_model_path', default=None, type=str,
                         help="Local ESM pretrained model path. (default: None, using downloaded ESM2-650M from fair-esm)")
     parser.add_argument('--weight', required=True,  type=str,
                         help="CLEF model weights path.")
-    parser.add_argument('--supp_feat_dim', required=True,  type=int,
-                        help="Corresponding biological feature dimension length (matched with --encoder_weight_path)")
     args = parser.parse_args()
     
     main(args)

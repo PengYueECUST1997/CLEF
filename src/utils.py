@@ -5,7 +5,7 @@ import torch.nn as nn
 import os
 import pandas as pd
 
-def load_feature_from_local(feature_path):
+def load_feature_from_local(feature_path, silence=False):
     '''
     load feature dict from local path (Using pickle.load() or torch.load())
     the dictionary is like:
@@ -17,7 +17,8 @@ def load_feature_from_local(feature_path):
     try:
         with open(feature_path, 'rb') as f:
             obj = pickle.load(f)
-        print("File is loaded using pickle.load()")
+        if not silence:
+            print("File is loaded using pickle.load()")
         return obj
     except (pickle.UnpicklingError, EOFError):
         pass
@@ -25,7 +26,8 @@ def load_feature_from_local(feature_path):
     # Try torch.load() function
     try:
         obj = torch.load(feature_path)
-        print("File is loaded using torch.load()")
+        if not silence:
+            print("File is loaded using torch.load()")
         return obj
     except (torch.serialization.UnsupportedPackageTypeError, RuntimeError):
         pass
@@ -33,6 +35,19 @@ def load_feature_from_local(feature_path):
     print("Unable to load file.")
     return None
 
+def check_hidden_layer_dimensions(data_dict):
+    hidden_layer_size = None
+    for key, value in data_dict.items():
+        if not isinstance(value, np.ndarray):
+            raise ValueError(f"Value for key '{key}' is not a numpy array.")
+
+        current_size = value.shape[-1]
+        if hidden_layer_size is None:
+            hidden_layer_size = current_size
+        elif hidden_layer_size != current_size:
+            return None  
+
+    return hidden_layer_size
 
 def generate_concat_feature(featA_path, featB_path, output_file = None, Return = False):
       featA = load_feature_from_local(featA_path)
