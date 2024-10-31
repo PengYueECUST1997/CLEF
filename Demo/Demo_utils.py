@@ -273,7 +273,7 @@ def train_clef(input_file_config,
         line = f'Epoch: {epoch}; Train loss:{avg_loss}; time:{t} s'
         print(line)
         log.append(f'{line}\n')
-        tmp_check_path = os.path.join(temp_check_point, f"./{batch_size}_{epoch}.pt")
+        tmp_check_path = os.path.join(temp_check_point, f"./checkpoint_{epoch}.pt")
         if save_by_epoch:
             torch.save(model.state_dict(), tmp_check_path)
         elif epoch == num_epoch - 1 or epoch + 1 in check_list:
@@ -292,4 +292,5 @@ def train_clef(input_file_config,
     log_path = os.path.join(output_dir, 'log.txt')
     with open(log_path, 'w') as f:
         f.writelines(log)
+    print(f"Log text file saved to {log_path}.")  
       

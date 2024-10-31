@@ -119,14 +119,13 @@ def sequence_mask(X, valid_lens):
     return src_key_padding_mask
 
 
-class ContrastiveLoss(nn.Module):
+class ContrastiveLoss(nn.Module): # an alternative loss function, can be used in cross-modal feature integrating as well
     def __init__(self, margin=1.0, temperature=1.0):
         super(ContrastiveLoss, self).__init__()
         self.margin = margin
         self.temperature = temperature
 
     def forward(self, image_embeds, text_embeds):
-        
         image_embeds = F.normalize(image_embeds, dim=-1, p=2)
         text_embeds = F.normalize(text_embeds, dim=-1, p=2)
 
@@ -137,3 +136,21 @@ class ContrastiveLoss(nn.Module):
         contrastive_loss = (torch.logsumexp(similarity_matrix - self.margin, dim=-1) - positives).mean()
 
         return contrastive_loss
+
+
+class InfoNCELoss(nn.Module):
+    def __init__(self, temperature=1.0):
+        super(InfoNCELoss, self).__init__()
+        self.temperature = temperature
+
+    def forward(self, image_embeds, text_embeds):
+        image_embeds = F.normalize(image_embeds, dim=-1, p=2)
+        text_embeds = F.normalize(text_embeds, dim=-1, p=2)
+
+        similarity_matrix = F.cosine_similarity(image_embeds.unsqueeze(1), text_embeds.unsqueeze(0), dim=-1) / self.temperature
+
+        positives = torch.diag(similarity_matrix)
+
+        nce_loss = -torch.log(torch.exp(positives) / torch.exp(similarity_matrix).sum(dim=-1)).mean()
+
+        return nce_loss

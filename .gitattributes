@@ -1,5 +1,2 @@
 pretrained_model/CLEF-DP+MSA+3Di+AT.pt filter=lfs diff=lfs merge=lfs -text
 pretrained_model/CLEF-DP+AT.pt filter=lfs diff=lfs merge=lfs -text
-pretrained_model/T3classifier-CLEF-DP+AT-0.82cutoff.pt filter=lfs diff=lfs merge=lfs -text
-pretrained_model/T4classifier-CLEF-DP+MSA+3Di+AT-0.83cutoff.pt filter=lfs diff=lfs merge=lfs -text
-pretrained_model/T6classifier-CLEF-DP+MSA+3Di+AT-0.5cutoff.pt filter=lfs diff=lfs merge=lfs -text
