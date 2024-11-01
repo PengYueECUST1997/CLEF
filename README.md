@@ -38,8 +38,11 @@ The generated cross-modal representations can be used in other downstream predic
 
 ### Download weights
 We provide several pre-trained model weights in the `./pretrained_model` directory to enable users to test the demo code provided below.
+
  **Note** :that some weight files exceed 100 MB and are uploaded using Git LFS. If you clone all the repository directly, you may encounter errors when loading these weights. 
+
 To address this, we recommend downloading these files manually to your local environment from page.
+
 **or** accessing the weights via [Google Drive](https://drive.google.com/drive/u/1/folders/1OAmn487vu3e4J258eMhcX8vTuZzcIX0d).
 
 ### Generate Cross-Modal Representation
@@ -79,8 +82,11 @@ The prediction results will be listed in an CSV table `Test_result.csv`.
 ### Train a CLEF model 
 
 This framework provides a method to perform cross-modal training between embeddings from language model and other related-modality features like structure and annotations
+
 To train a CLEF encoder, you need to prepare `fasta` format files for the protein samples (or encoded 2D-representations) and the corresponding feature files for those proteins. 
+
 Training with different features will yield different CLEF models, generating distinct cross-modal representations that may perform differently in various downstream tasks. 
+
 In our provided demo code, you can input multiple feature vectors of any length (a dict looks like {sample_id:1D numpy array}) for training, the demo data is provided at `./Demo/Demo_train/`:
 
 ```shell
@@ -88,13 +94,14 @@ python CLEFTrain.py --Seq ./Demo_train/Demo_trainset.faa --Feat ./Demo_train/Dem
 ```
 Parameters:
 
-- `--Fa` fasta file of input trainset proteins.
+- `--Seq` file of input trainset proteins sequences, can be `.fasta` file or encoded embeddings dict by PLM
 - `--Feat` feature array files of input trainset proteins, you can input multiple feature files for multimodal training.
 - `--Out` output dir containing the training checkpoint.
 - `--lr` learning rate for training.
 - `--btz` batch size for training for training.
 - `--epoch` number of training epoch.
 - `--maxlen` max length of input protein sequence that model process, 256 by default.
+
 The training log text files and the model weights checkpoint will be saved in the output directory.
 
 Training the model can be time-consuming and requires adequate hardware support. For example, using an RTX 3060Ti 8GB GPU, training on a dataset of approximately 3,000 proteins for 20 epochs takes around 15 minutes.
