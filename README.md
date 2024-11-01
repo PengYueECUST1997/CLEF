@@ -90,7 +90,7 @@ Training with different features will yield different CLEF models, generating di
 In our provided demo code, you can input multiple feature vectors of any length (a dict looks like {sample_id:1D numpy array}) for training, the demo data is provided at `./Demo/Demo_train/`:
 
 ```shell
-python CLEFTrain.py --Seq ./Demo_train/Demo_trainset.faa --Feat ./Demo_train/Demo_trainset_featA ./Demo_train/Demo_trainset_featB ./Demo_train/Demo_trainset_featC --Out Demo_clef --lr 0.00002 --epoch 20 --btz 20
+python CLEFTrain.py --Seq ./Demo_train/Demo_trainset.faa --Feat ./Demo_train/Demo_trainset_featA ./Demo_train/Demo_trainset_featB ./Demo_train/Demo_trainset_featC --Out Demo_clef --lr 0.00002 --epoch 20 --btz 128
 ```
 Parameters:
 
