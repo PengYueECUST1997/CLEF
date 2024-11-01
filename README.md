@@ -33,7 +33,7 @@ pip install -r requirements.txt
 
 ## Demo
 
-CLEF was trained under a contrative learning framework, and can generate cross-modal representations based on pre-trained protein language models (pLMs) of [ESM2](https://github.com/facebookresearch/esm)
+CLEF was trained under a contrative learning framework, and can generate cross-modal representations based on pre-trained protein language models (PLMs) of [ESM2](https://github.com/facebookresearch/esm)
 The generated cross-modal representations can be used in other downstream predictions task and enhance the protein classification performance.
 
 ### Download weights
@@ -68,13 +68,13 @@ This will create a file `Test_clef_rep`, containing the cross-modal representati
 After that, the generated representations can be used in other protein classification tasks, here we give an example of T6SE prediction:
 
 ```shell
-python PredictProteinClassification.py --In Test_clef_rep --Out Test_result.csv --weight ../pretrained_model/T6classifier-CLEF-DP+MSA+3Di+AT-0.5cutoff.pt 
+python PredictProteinClassification.py --In Test_clef_rep --Out Test_result.csv --weight ../pretrained_model/T6classifier-CLEF-DP+MSA+3Di+AT-0.7cutoff.pt 
 ```
 Parameters:
 
 - `--In` file of input proteins representation, `Test_clef_rep` is a dict looks like {sample_id:1D numpy array}.
 - `--Out` output prediction result CSV table.
-- `--weight` classifier weights path, `T6classifier-CLEF-DP+MSA+3Di+AT-0.5cutoff.pt` is a simple multilayer perceptron (MLP) trained to discriminate T6SE and non-T6SE
+- `--weight` classifier weights path, `T6classifier-CLEF-DP+MSA+3Di+AT-0.7cutoff.pt` is a simple multilayer perceptron (MLP) trained to discriminate T6SE and non-T6SE
 
 The prediction results will be listed in an CSV table `Test_result.csv`.
 
