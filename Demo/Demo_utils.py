@@ -51,7 +51,7 @@ def predict_from_1D_rep(input_file, initial_model, params_path,
         'pred':[],
         eff_type:[]
     }
-    model.load_state_dict(torch.load(params_path))
+    model.load_state_dict(torch.load(params_path, map_location=torch.device('cpu')))
     model.eval()
     Dataset.test_range = range(len(Dataset))
     for batch in Dataset.Dataloader(batch_size=32,shuffle=False,max_num_padding=None,test=True,device=device):
