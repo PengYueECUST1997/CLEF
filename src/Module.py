@@ -3,6 +3,13 @@ import torch.nn.functional as F
 import torch
 from einops import rearrange
 
+'''
+Transformer architecture reference: "Attention Is All You Need" by Vaswani et al. (2017)  
+The transformer block code is derived from DeepSecE (https://github.com/zhangyumeng1sjtu/DeepSecE):
+  Author: Yumeng Zhang  
+  Published Article:  https://doi.org/10.34133/research.0258 
+'''
+
 class Attention(nn.Module):
     def __init__(self, dim, heads=8, dim_key=64, dim_value=64, dropout=0.):
         super().__init__()
